@@ -7,6 +7,7 @@ import (
 	"riisager/backend_plant_monitor_go/internal/httpServer"
 	"riisager/backend_plant_monitor_go/internal/mqtt"
 	"riisager/backend_plant_monitor_go/internal/types"
+	"sync"
 	"syscall"
 )
 
@@ -16,17 +17,27 @@ func main() {
 
 	publisherAdded := make(chan types.SubscriptionInfo, 1)
 
-	go mqtt.Run(
-		context,
-		mqtt.MqttOptions{
-			SubscriptionChannel: publisherAdded,
-		})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		defer wg.Done()
+		defer stop()
+		mqtt.Run(
+			mqtt.MqttOptions{
+				Context:             context,
+				SubscriptionChannel: publisherAdded,
+			})
 
-	go httpServer.Run(
-		httpServer.HttpOptions{
-			Context:             context,
-			SubscriptionChannel: publisherAdded,
-		})
+	})
+	wg.Go(func() {
+		defer wg.Done()
+		defer stop()
+		httpServer.Run(
+			httpServer.HttpOptions{
+				Context:             context,
+				SubscriptionChannel: publisherAdded,
+			})
 
-	<-context.Done()
+	})
+
+	wg.Wait()
 }

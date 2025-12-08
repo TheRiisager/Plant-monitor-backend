@@ -13,27 +13,27 @@ import (
 )
 
 type MqttOptions struct {
+	Context             context.Context
 	SubscriptionChannel chan types.SubscriptionInfo
 	DatabaseChannel     chan int
 }
 
 const SUB_FILE_PATH string = "./config/subscriptions.json"
 
-func Run(rootContext context.Context, options MqttOptions) {
+func Run(options MqttOptions) {
 
-	mqttContext, cancel := context.WithCancel(rootContext)
+	mqttContext, cancel := context.WithCancel(options.Context)
 
 	u, err := url.Parse("mqtt://localhost:1883")
 	if err != nil {
 		cancel()
-		panic(err)
 	}
 
 	mqttRouter := paho.NewStandardRouter()
-	knownsubs, err := json.ReadfromFile[types.SubscriptionInfo](SUB_FILE_PATH)
+	knownsubs, err := json.ReadfromFile[[]types.SubscriptionInfo](SUB_FILE_PATH)
 
 	if err != nil {
-		panic(err)
+		cancel()
 	}
 
 	clientCfg := autopaho.ClientConfig{
@@ -41,34 +41,21 @@ func Run(rootContext context.Context, options MqttOptions) {
 		KeepAlive:             20,
 		SessionExpiryInterval: 60,
 		OnConnectionUp: func(cm *autopaho.ConnectionManager, c *paho.Connack) {
-			initSubscriptionsFromConfig(cm, knownsubs, mqttContext)
-			go func() {
-				for {
-					select {
-					case newSub := <-options.SubscriptionChannel:
-						fmt.Println(newSub)
-						_, err := cm.Subscribe(mqttContext, &paho.Subscribe{
-							Subscriptions: []paho.SubscribeOptions{
-								{Topic: newSub.Topic},
-							},
-						})
-
-						if err != nil {
-							fmt.Println(err)
-						}
-						writeErr := addSubscriptionToSubList(newSub, knownsubs)
-						if writeErr != nil {
-							fmt.Println(writeErr)
-						}
-					case <-mqttContext.Done():
-						return
-					}
-				}
-			}()
+			initSubscriptionsFromConfig(
+				cm,
+				knownsubs,
+				mqttContext,
+			)
+			handleConnection(
+				mqttContext,
+				cm,
+				c,
+				knownsubs,
+				options.SubscriptionChannel,
+			)
 		},
 		OnConnectError: func(err error) {
 			cancel()
-			panic(err)
 		},
 		ClientConfig: paho.ClientConfig{
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
@@ -92,11 +79,43 @@ func Run(rootContext context.Context, options MqttOptions) {
 		cancel()
 		panic(err)
 	}
+
+	<-mqttContext.Done()
+}
+
+func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs []types.SubscriptionInfo, channel chan types.SubscriptionInfo) {
+	go func() {
+		subList := subs
+		for {
+			select {
+			case newSub := <-channel:
+				_, err := cm.Subscribe(ctx, &paho.Subscribe{
+					Subscriptions: []paho.SubscribeOptions{
+						{Topic: newSub.Topic},
+					},
+				})
+
+				if err != nil {
+					fmt.Println(err)
+				}
+				subList = append(subList, newSub)
+				fmt.Println(subList)
+			case <-ctx.Done():
+				SaveSubscriptionsToFile(&subList)
+				return
+			}
+		}
+	}()
 }
 
 func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs []types.SubscriptionInfo, ctx context.Context) {
 
 	var subscribeList []paho.SubscribeOptions
+
+	if knownSubs == nil {
+		fmt.Println("No subscriptions in config")
+		return
+	}
 
 	for _, sub := range knownSubs {
 		subscribeList = append(subscribeList, paho.SubscribeOptions{Topic: sub.Topic})
@@ -111,9 +130,13 @@ func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs []typ
 	}
 }
 
-func addSubscriptionToSubList(newSub types.SubscriptionInfo, knownSubs []types.SubscriptionInfo) error {
-	return json.AppendToFile(
+func SaveSubscriptionsToFile(subs *[]types.SubscriptionInfo) {
+	err := json.WriteToFile(
 		SUB_FILE_PATH,
-		append(knownSubs, newSub),
+		subs,
 	)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }

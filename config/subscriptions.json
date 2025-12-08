@@ -1,8 +1,1 @@
-[
-    {
-        "topic": "test from json!"
-    },
-    {
-        "topic": "json test 2!"
-    }
-]
+[{"topic":"test from http"},{"topic":"test from http 2"},{"topic":"test from http 3"},{"topic":"test from http 4"}]
