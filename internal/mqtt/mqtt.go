@@ -15,7 +15,7 @@ import (
 type MqttOptions struct {
 	Context             context.Context
 	SubscriptionChannel chan types.SubscriptionInfo
-	DatabaseChannel     chan int
+	DatabaseChannel     chan types.Reading
 }
 
 const SUB_FILE_PATH string = "./config/subscriptions.json"
@@ -30,6 +30,10 @@ func Run(options MqttOptions) {
 	}
 
 	mqttRouter := paho.NewStandardRouter()
+	mqttRouter.DefaultHandler(func(p *paho.Publish) {
+		handleMessageReceived(p, options.DatabaseChannel)
+	})
+
 	knownsubs, err := json.ReadfromFile[[]types.SubscriptionInfo](SUB_FILE_PATH)
 
 	if err != nil {
@@ -81,6 +85,10 @@ func Run(options MqttOptions) {
 	}
 
 	<-mqttContext.Done()
+}
+
+func handleMessageReceived(p *paho.Publish, dbchannel chan types.Reading) {
+
 }
 
 func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs []types.SubscriptionInfo, channel chan types.SubscriptionInfo) {

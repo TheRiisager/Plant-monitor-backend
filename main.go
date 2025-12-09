@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"riisager/backend_plant_monitor_go/internal/httpServer"
+	"riisager/backend_plant_monitor_go/internal/io/database"
 	"riisager/backend_plant_monitor_go/internal/mqtt"
 	"riisager/backend_plant_monitor_go/internal/types"
 	"sync"
@@ -16,6 +17,7 @@ func main() {
 	defer stop()
 
 	publisherAdded := make(chan types.SubscriptionInfo, 1)
+	databaseChannel := make(chan types.Reading, 10)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -25,6 +27,7 @@ func main() {
 			mqtt.MqttOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
+				DatabaseChannel:     databaseChannel,
 			})
 
 	})
@@ -37,6 +40,15 @@ func main() {
 				SubscriptionChannel: publisherAdded,
 			})
 
+	})
+	wg.Go(func() {
+		defer wg.Done()
+		defer stop()
+		database.Run(
+			database.DatabaseOptions{
+				Context:         context,
+				DatabaseChannel: databaseChannel,
+			})
 	})
 
 	wg.Wait()
