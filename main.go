@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"riisager/backend_plant_monitor_go/internal/httpServer"
@@ -10,7 +11,11 @@ import (
 	"riisager/backend_plant_monitor_go/internal/types"
 	"sync"
 	"syscall"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const DB_URL = ""
 
 func main() {
 	context, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -18,6 +23,13 @@ func main() {
 
 	publisherAdded := make(chan types.SubscriptionInfo, 1)
 	databaseChannel := make(chan types.Reading, 10)
+
+	dbpool, err := pgxpool.New(context, DB_URL)
+	if err != nil {
+		fmt.Println(err)
+		stop()
+	}
+	defer dbpool.Close()
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -38,6 +50,7 @@ func main() {
 			httpServer.HttpOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
+				Dbpool:              dbpool,
 			})
 
 	})
@@ -48,6 +61,7 @@ func main() {
 			database.DatabaseOptions{
 				Context:         context,
 				DatabaseChannel: databaseChannel,
+				Dbpool:          dbpool,
 			})
 	})
 

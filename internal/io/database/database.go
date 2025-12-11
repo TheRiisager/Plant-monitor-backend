@@ -4,36 +4,24 @@ import (
 	"context"
 	"fmt"
 	"riisager/backend_plant_monitor_go/internal/types"
-	"strconv"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-const DB_URL = ""
 
 type DatabaseOptions struct {
 	Context         context.Context
 	DatabaseChannel chan types.Reading
+	Dbpool          *pgxpool.Pool
 }
 
 func Run(options DatabaseOptions) {
-	dbcontext, cancel := context.WithCancel(options.Context)
-
-	dbpool, err := pgxpool.New(dbcontext, DB_URL)
-	if err != nil {
-		fmt.Println(err)
-		cancel()
-	}
-	defer func() {
-		dbpool.Close()
-		cancel()
-	}()
 
 	for {
 		select {
 		case newReading := <-options.DatabaseChannel:
-			go saveReading(newReading, dbpool, dbcontext)
-		case <-dbcontext.Done():
+			go saveReading(newReading, options.Dbpool, options.Context)
+		case <-options.Context.Done():
 			return
 		}
 	}
@@ -48,11 +36,10 @@ func saveReading(reading types.Reading, dbpool *pgxpool.Pool, ctx context.Contex
 
 	_, err = tx.Exec(
 		ctx,
-		"INSERT INTO conditions VALUES (NOW(),"+
-			reading.DeviceName+
-			","+
-			strconv.FormatFloat(float64(reading.Temperature), 'f', -1, 32)+
-			"",
+		"INSERT INTO conditions VALUES (NOW(), $1, $2, $3)",
+		reading.DeviceName,
+		reading.Temperature,
+		reading.SoilMoisture,
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -62,4 +49,36 @@ func saveReading(reading types.Reading, dbpool *pgxpool.Pool, ctx context.Contex
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func QueryTimeSpanByDevice(dbpool *pgxpool.Pool, deviceName string, time string, ctx context.Context) ([]types.Reading, error) {
+	//TODO validate formatting on time string to be a human readable duration, fx. "1 day", "3 months"
+
+	tx, err := dbpool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(
+		ctx,
+		"SELECT * FROM readings WHERE device_name=$1 AND time > NOW() - INTERVAL $2 ORDER BY time DESC",
+		deviceName,
+		time,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	readings, err := pgx.CollectRows(rows, pgx.RowToStructByName[types.Reading])
+	if err != nil {
+		return nil, err
+	}
+
+	return readings, nil
 }
