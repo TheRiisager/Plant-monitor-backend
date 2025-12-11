@@ -36,7 +36,7 @@ func saveReading(reading types.Reading, dbpool *pgxpool.Pool, ctx context.Contex
 
 	_, err = tx.Exec(
 		ctx,
-		"INSERT INTO conditions VALUES (NOW(), $1, $2, $3)",
+		"INSERT INTO readings VALUES (NOW(), $1, $2, $3)",
 		reading.DeviceName,
 		reading.Temperature,
 		reading.SoilMoisture,
