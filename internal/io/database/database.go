@@ -2,7 +2,9 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"riisager/backend_plant_monitor_go/internal/types"
 
 	"github.com/jackc/pgx/v5"
@@ -52,7 +54,13 @@ func saveReading(reading types.Reading, dbpool *pgxpool.Pool, ctx context.Contex
 }
 
 func QueryTimeSpanByDevice(dbpool *pgxpool.Pool, deviceName string, time string, ctx context.Context) ([]types.Reading, error) {
-	//TODO validate formatting on time string to be a human readable duration, fx. "1 day", "3 months"
+	//TODO validate device name
+
+	regex := regexp.MustCompile(`\b\d+\s*(?:second|minute|hour|day|week|month|year)s?\b`)
+
+	if !regex.MatchString(time) {
+		return nil, errors.New("invalid time string")
+	}
 
 	tx, err := dbpool.Begin(ctx)
 	if err != nil {

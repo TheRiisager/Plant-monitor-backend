@@ -12,18 +12,20 @@ import (
 	"github.com/eclipse/paho.golang/paho"
 )
 
+const SUB_FILE_PATH string = "./config/subscriptions.json"
+
 type MqttOptions struct {
 	Context             context.Context
+	GlobalStore         *types.GlobalStore
 	SubscriptionChannel chan types.SubscriptionInfo
 	DatabaseChannel     chan types.Reading
 }
-
-const SUB_FILE_PATH string = "./config/subscriptions.json"
 
 func Run(options MqttOptions) {
 
 	mqttContext, cancel := context.WithCancel(options.Context)
 
+	//TODO replace with environment variable
 	u, err := url.Parse("mqtt://localhost:1883")
 	if err != nil {
 		cancel()
@@ -33,8 +35,6 @@ func Run(options MqttOptions) {
 	mqttRouter.DefaultHandler(func(p *paho.Publish) {
 		handleMessageReceived(p, options.DatabaseChannel)
 	})
-
-	knownsubs, err := json.ReadfromFile[[]types.SubscriptionInfo](SUB_FILE_PATH)
 
 	if err != nil {
 		cancel()
@@ -47,14 +47,14 @@ func Run(options MqttOptions) {
 		OnConnectionUp: func(cm *autopaho.ConnectionManager, c *paho.Connack) {
 			initSubscriptionsFromConfig(
 				cm,
-				knownsubs,
+				options.GlobalStore.Devices,
 				mqttContext,
 			)
 			handleConnection(
 				mqttContext,
 				cm,
 				c,
-				knownsubs,
+				options.GlobalStore.Devices,
 				options.SubscriptionChannel,
 			)
 		},
@@ -91,32 +91,31 @@ func handleMessageReceived(p *paho.Publish, dbchannel chan types.Reading) {
 
 }
 
-func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs []types.SubscriptionInfo, channel chan types.SubscriptionInfo) {
+func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs types.Devices, channel chan types.SubscriptionInfo) {
 	go func() {
-		subList := subs
 		for {
 			select {
 			case newSub := <-channel:
 				_, err := cm.Subscribe(ctx, &paho.Subscribe{
 					Subscriptions: []paho.SubscribeOptions{
-						{Topic: newSub.Topic},
+						{Topic: newSub.Device},
 					},
 				})
 
 				if err != nil {
 					fmt.Println(err)
 				}
-				subList = append(subList, newSub)
-				fmt.Println(subList)
+				subs.Add(newSub)
+				fmt.Println(subs)
 			case <-ctx.Done():
-				SaveSubscriptionsToFile(&subList)
+				SaveSubscriptionsToFile(&subs)
 				return
 			}
 		}
 	}()
 }
 
-func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs []types.SubscriptionInfo, ctx context.Context) {
+func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs types.Devices, ctx context.Context) {
 
 	var subscribeList []paho.SubscribeOptions
 
@@ -126,7 +125,7 @@ func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs []typ
 	}
 
 	for _, sub := range knownSubs {
-		subscribeList = append(subscribeList, paho.SubscribeOptions{Topic: sub.Topic})
+		subscribeList = append(subscribeList, paho.SubscribeOptions{Topic: sub.Device})
 	}
 
 	_, err := cm.Subscribe(ctx, &paho.Subscribe{
@@ -138,10 +137,11 @@ func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs []typ
 	}
 }
 
-func SaveSubscriptionsToFile(subs *[]types.SubscriptionInfo) {
+func SaveSubscriptionsToFile(subs *types.Devices) {
+	//todo replace with environment variables
 	err := json.WriteToFile(
 		SUB_FILE_PATH,
-		subs,
+		&subs,
 	)
 
 	if err != nil {

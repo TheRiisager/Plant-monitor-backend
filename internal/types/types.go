@@ -1,9 +1,23 @@
 package types
 
-import "time"
+import (
+	"time"
+)
+
+// todo thread safety?
+// todo consider moving pgx pool here, maybe with a wrapper struct containing the needed functions?
+type GlobalStore struct {
+	Devices Devices
+}
 
 type SubscriptionInfo struct {
-	Topic string `json:"topic" validate:"required"`
+	Device string `json:"device" validate:"required"`
+}
+
+type Devices []SubscriptionInfo
+
+func (d *Devices) Add(item SubscriptionInfo) {
+	*d = append(*d, item)
 }
 
 type Reading struct {

@@ -6,6 +6,7 @@ import (
 	"riisager/backend_plant_monitor_go/internal/types"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/mux"
 )
 
 func AddPublisher(options HttpOptions) http.Handler {
@@ -27,5 +28,22 @@ func AddPublisher(options HttpOptions) http.Handler {
 		}
 		options.SubscriptionChannel <- body
 		w.WriteHeader(http.StatusOK)
+	})
+}
+
+func ReadingsByTimeSpan(options HttpOptions) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		deviceNameValid := false
+		for _, val := range options.GlobalStore.Devices {
+			if val.Device == vars["deviceName"] {
+				deviceNameValid = true
+				break
+			}
+		}
+		if !deviceNameValid {
+			http.Error(w, "no such device", http.StatusBadRequest)
+			return
+		}
 	})
 }
