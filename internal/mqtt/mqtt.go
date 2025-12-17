@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"riisager/backend_plant_monitor_go/internal/io/database"
 	"riisager/backend_plant_monitor_go/internal/io/json"
 	"riisager/backend_plant_monitor_go/internal/types"
 
@@ -18,7 +19,7 @@ type MqttOptions struct {
 	Context             context.Context
 	GlobalStore         *types.GlobalStore
 	SubscriptionChannel chan types.SubscriptionInfo
-	DatabaseChannel     chan types.Reading
+	Database            database.DatabaseWrapper
 }
 
 func Run(options MqttOptions) {
@@ -33,7 +34,7 @@ func Run(options MqttOptions) {
 
 	mqttRouter := paho.NewStandardRouter()
 	mqttRouter.DefaultHandler(func(p *paho.Publish) {
-		handleMessageReceived(p, options.DatabaseChannel)
+		handleMessageReceived(p, options.Database)
 	})
 
 	if err != nil {
@@ -87,7 +88,7 @@ func Run(options MqttOptions) {
 	<-mqttContext.Done()
 }
 
-func handleMessageReceived(p *paho.Publish, dbchannel chan types.Reading) {
+func handleMessageReceived(p *paho.Publish, db database.DatabaseWrapper) {
 
 }
 

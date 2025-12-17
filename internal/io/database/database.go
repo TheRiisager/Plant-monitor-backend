@@ -11,49 +11,58 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DatabaseOptions struct {
-	Context         context.Context
-	DatabaseChannel chan types.Reading
-	Dbpool          *pgxpool.Pool
+type DatabaseWrapper struct {
+	Context context.Context
+	pool    *pgxpool.Pool
 }
 
-func Run(options DatabaseOptions) {
+func MakeDatabaseWrapper(context context.Context, url string) (DatabaseWrapper, error) {
+	var database = DatabaseWrapper{}
 
-	for {
-		select {
-		case newReading := <-options.DatabaseChannel:
-			go saveReading(newReading, options.Dbpool, options.Context)
-		case <-options.Context.Done():
+	pool, err := pgxpool.New(context, url)
+	if err != nil {
+		fmt.Println(err)
+		return database, err
+	}
+	database.Context = context
+	database.pool = pool
+
+	return database, nil
+}
+
+func (db DatabaseWrapper) Close() {
+	db.pool.Close()
+}
+
+func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
+	go func() {
+		tx, err := db.pool.Begin(db.Context)
+		if err != nil {
 			return
 		}
-	}
+		defer tx.Rollback(db.Context)
+
+		_, err = tx.Exec(
+			db.Context,
+			"INSERT INTO readings VALUES (NOW(), $1, $2, $3)",
+			reading.DeviceName,
+			reading.Temperature,
+			reading.SoilMoisture,
+		)
+		if err != nil {
+			return
+		}
+
+		err = tx.Commit(db.Context)
+		if err != nil {
+			return
+		}
+	}()
+
+	return nil
 }
 
-func saveReading(reading types.Reading, dbpool *pgxpool.Pool, ctx context.Context) {
-	tx, err := dbpool.Begin(ctx)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(
-		ctx,
-		"INSERT INTO readings VALUES (NOW(), $1, $2, $3)",
-		reading.DeviceName,
-		reading.Temperature,
-		reading.SoilMoisture,
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func QueryTimeSpanByDevice(dbpool *pgxpool.Pool, deviceName string, time string, ctx context.Context) ([]types.Reading, error) {
+func (db DatabaseWrapper) QueryTimeSpanByDevice(deviceName string, time string) ([]types.Reading, error) {
 	//TODO validate device name
 
 	regex := regexp.MustCompile(`\b\d+\s*(?:second|minute|hour|day|week|month|year)s?\b`)
@@ -62,14 +71,14 @@ func QueryTimeSpanByDevice(dbpool *pgxpool.Pool, deviceName string, time string,
 		return nil, errors.New("invalid time string")
 	}
 
-	tx, err := dbpool.Begin(ctx)
+	tx, err := db.pool.Begin(db.Context)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(db.Context)
 
 	rows, err := tx.Query(
-		ctx,
+		db.Context,
 		"SELECT * FROM readings WHERE device_name=$1 AND time > NOW() - INTERVAL $2 ORDER BY time DESC",
 		deviceName,
 		time,
@@ -78,7 +87,7 @@ func QueryTimeSpanByDevice(dbpool *pgxpool.Pool, deviceName string, time string,
 		return nil, err
 	}
 
-	err = tx.Commit(ctx)
+	err = tx.Commit(db.Context)
 	if err != nil {
 		return nil, err
 	}

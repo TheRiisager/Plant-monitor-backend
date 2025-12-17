@@ -27,10 +27,13 @@ func main() {
 	defer stop()
 
 	publisherAdded := make(chan types.SubscriptionInfo, 1)
-	databaseChannel := make(chan types.Reading, 10)
 
-	dbpool := initDatabase(context, stop)
-	defer dbpool.Close()
+	database, err := database.MakeDatabaseWrapper(context, DB_URL)
+	if err != nil {
+		fmt.Println(err)
+		stop()
+	}
+	defer database.Close()
 
 	globalStore := initGlobalStore(stop)
 
@@ -42,7 +45,7 @@ func main() {
 			mqtt.MqttOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
-				DatabaseChannel:     databaseChannel,
+				Database:            database,
 				GlobalStore:         globalStore,
 			})
 
@@ -54,22 +57,11 @@ func main() {
 			httpServer.HttpOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
-				Dbpool:              dbpool,
+				Database:            database,
 				GlobalStore:         globalStore,
 			})
 
 	})
-	wg.Go(func() {
-		defer wg.Done()
-		defer stop()
-		database.Run(
-			database.DatabaseOptions{
-				Context:         context,
-				DatabaseChannel: databaseChannel,
-				Dbpool:          dbpool,
-			})
-	})
-
 	wg.Wait()
 }
 

@@ -3,16 +3,16 @@ package httpServer
 import (
 	"context"
 	"net/http"
+	"riisager/backend_plant_monitor_go/internal/io/database"
 	"riisager/backend_plant_monitor_go/internal/types"
 
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HttpOptions struct {
 	Context             context.Context
 	SubscriptionChannel chan types.SubscriptionInfo
-	Dbpool              *pgxpool.Pool
+	Database            database.DatabaseWrapper
 	GlobalStore         *types.GlobalStore
 }
 
