@@ -42,6 +42,7 @@ func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
 		return err
 	}
 	go func() {
+		defer db.semaphore.Release(1)
 		tx, err := db.pool.Begin(db.Context)
 		if err != nil {
 			return
