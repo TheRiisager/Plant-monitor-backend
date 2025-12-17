@@ -9,13 +9,13 @@ type GlobalStore struct {
 	Devices Devices
 }
 
-type SubscriptionInfo struct {
+type DeviceInfo struct {
 	Device string `json:"device" validate:"required"`
 }
 
-type Devices []SubscriptionInfo
+type Devices []DeviceInfo
 
-func (d *Devices) Add(item SubscriptionInfo) {
+func (d *Devices) Add(item DeviceInfo) {
 	*d = append(*d, item)
 }
 
