@@ -2,11 +2,12 @@ package mqtt
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"riisager/backend_plant_monitor_go/internal/io/database"
-	"riisager/backend_plant_monitor_go/internal/io/json"
+	"riisager/backend_plant_monitor_go/internal/io/file"
 	"riisager/backend_plant_monitor_go/internal/types"
 
 	"github.com/eclipse/paho.golang/autopaho"
@@ -18,7 +19,7 @@ const SUB_FILE_PATH string = "./config/subscriptions.json"
 type MqttOptions struct {
 	Context             context.Context
 	GlobalStore         *types.GlobalStore
-	SubscriptionChannel chan types.SubscriptionInfo
+	SubscriptionChannel chan types.DeviceInfo
 	Database            database.DatabaseWrapper
 }
 
@@ -89,10 +90,16 @@ func Run(options MqttOptions) {
 }
 
 func handleMessageReceived(p *paho.Publish, db database.DatabaseWrapper) {
+	var payload types.Reading
+	err := json.Unmarshal(p.Payload, &payload)
+	if err != nil {
+		fmt.Println(err)
+	}
 
+	db.SaveReading(payload)
 }
 
-func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs types.Devices, channel chan types.SubscriptionInfo) {
+func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs types.Devices, channel chan types.DeviceInfo) {
 	go func() {
 		for {
 			select {
@@ -140,7 +147,7 @@ func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs types
 
 func SaveSubscriptionsToFile(subs *types.Devices) {
 	//todo replace with environment variables
-	err := json.WriteToFile(
+	err := file.WriteToFile(
 		SUB_FILE_PATH,
 		&subs,
 	)

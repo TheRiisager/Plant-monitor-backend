@@ -14,7 +14,7 @@ func AddPublisher(options HttpOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		validate := validator.New(validator.WithRequiredStructEnabled())
 		decoder := json.NewDecoder(r.Body)
-		var body types.SubscriptionInfo
+		var body types.DeviceInfo
 		err := decoder.Decode(&body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -9,14 +9,16 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/semaphore"
 )
 
 type DatabaseWrapper struct {
-	Context context.Context
-	pool    *pgxpool.Pool
+	Context   context.Context
+	pool      *pgxpool.Pool
+	semaphore *semaphore.Weighted
 }
 
-func MakeDatabaseWrapper(context context.Context, url string) (DatabaseWrapper, error) {
+func MakeDatabaseWrapper(context context.Context, url string, maxWorkers int64) (DatabaseWrapper, error) {
 	var database = DatabaseWrapper{}
 
 	pool, err := pgxpool.New(context, url)
@@ -26,6 +28,7 @@ func MakeDatabaseWrapper(context context.Context, url string) (DatabaseWrapper, 
 	}
 	database.Context = context
 	database.pool = pool
+	database.semaphore = semaphore.NewWeighted(maxWorkers)
 
 	return database, nil
 }
@@ -35,6 +38,9 @@ func (db DatabaseWrapper) Close() {
 }
 
 func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
+	if err := db.semaphore.Acquire(db.Context, 1); err != nil {
+		return err
+	}
 	go func() {
 		tx, err := db.pool.Begin(db.Context)
 		if err != nil {

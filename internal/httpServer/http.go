@@ -11,7 +11,7 @@ import (
 
 type HttpOptions struct {
 	Context             context.Context
-	SubscriptionChannel chan types.SubscriptionInfo
+	SubscriptionChannel chan types.DeviceInfo
 	Database            database.DatabaseWrapper
 	GlobalStore         *types.GlobalStore
 }

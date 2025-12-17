@@ -5,7 +5,6 @@ import (
 )
 
 // todo thread safety?
-// todo consider moving pgx pool here, maybe with a wrapper struct containing the needed functions?
 type GlobalStore struct {
 	Devices Devices
 }
