@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"riisager/backend_plant_monitor_go/internal/io/database"
-	"riisager/backend_plant_monitor_go/internal/io/file"
 	"riisager/backend_plant_monitor_go/internal/types"
 
 	"github.com/eclipse/paho.golang/autopaho"
@@ -56,7 +55,7 @@ func Run(options MqttOptions) {
 				mqttContext,
 				cm,
 				c,
-				options.GlobalStore.Devices,
+				options.GlobalStore,
 				options.SubscriptionChannel,
 			)
 		},
@@ -99,7 +98,7 @@ func handleMessageReceived(p *paho.Publish, db database.DatabaseWrapper) {
 	db.SaveReading(payload)
 }
 
-func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *paho.Connack, subs types.Devices, channel chan types.DeviceInfo) {
+func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *paho.Connack, store *types.GlobalStore, channel chan types.DeviceInfo) {
 	go func() {
 		for {
 			select {
@@ -113,10 +112,11 @@ func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, c *pa
 				if err != nil {
 					fmt.Println(err)
 				}
-				subs.Add(newSub)
-				fmt.Println(subs)
+				store.Mutex.Lock()
+				store.Devices.Add(newSub)
+				fmt.Println(store.Devices)
+				store.Mutex.Unlock()
 			case <-ctx.Done():
-				SaveSubscriptionsToFile(&subs)
 				return
 			}
 		}
@@ -142,17 +142,5 @@ func initSubscriptionsFromConfig(cm *autopaho.ConnectionManager, knownSubs types
 
 	if err != nil {
 		panic(err)
-	}
-}
-
-func SaveSubscriptionsToFile(subs *types.Devices) {
-	//todo replace with environment variables
-	err := file.WriteToFile(
-		SUB_FILE_PATH,
-		&subs,
-	)
-
-	if err != nil {
-		fmt.Println(err)
 	}
 }

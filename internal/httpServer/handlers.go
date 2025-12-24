@@ -35,6 +35,8 @@ func ReadingsByTimeSpan(options HttpOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		deviceNameValid := false
+		options.GlobalStore.Mutex.RLock()
+		defer options.GlobalStore.Mutex.RUnlock()
 		for _, val := range options.GlobalStore.Devices {
 			if val.Device == vars["deviceName"] {
 				deviceNameValid = true

@@ -1,12 +1,14 @@
 package types
 
 import (
+	"sync"
 	"time"
 )
 
 // todo thread safety?
 type GlobalStore struct {
 	Devices Devices
+	Mutex   sync.RWMutex
 }
 
 type DeviceInfo struct {

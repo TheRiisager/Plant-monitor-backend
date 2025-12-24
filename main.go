@@ -62,6 +62,17 @@ func main() {
 
 	})
 	wg.Wait()
+
+	globalStore.Mutex.RLock()
+	err = file.WriteToFile(
+		SUB_FILE_PATH,
+		&globalStore.Devices,
+	)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	globalStore.Mutex.RUnlock()
 }
 
 func initGlobalStore(stop context.CancelFunc) *types.GlobalStore {
