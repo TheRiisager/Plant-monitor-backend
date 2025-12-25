@@ -29,17 +29,15 @@ func Run(options MqttOptions) {
 	//TODO replace with environment variable
 	u, err := url.Parse("mqtt://localhost:1883")
 	if err != nil {
+		fmt.Printf("error parsing URL: %#v\n", err)
 		cancel()
+		return
 	}
 
 	mqttRouter := paho.NewStandardRouter()
 	mqttRouter.DefaultHandler(func(p *paho.Publish) {
 		handleMessageReceived(p, options.Database)
 	})
-
-	if err != nil {
-		cancel()
-	}
 
 	clientCfg := autopaho.ClientConfig{
 		ServerUrls:            []*url.URL{u},
@@ -74,15 +72,15 @@ func Run(options MqttOptions) {
 
 	connection, err := autopaho.NewConnection(mqttContext, clientCfg)
 	if err != nil {
-		fmt.Println("an error occured! " + err.Error())
+		fmt.Printf("Failed to connect to MQTT: %#v\n", err)
 		cancel()
-		panic(err)
+		return
 	}
 
 	if err = connection.AwaitConnection(mqttContext); err != nil {
-		fmt.Println("an error occured! " + err.Error())
+		fmt.Printf("Failed to connect to MQTT: %#v\n", err)
 		cancel()
-		panic(err)
+		return
 	}
 
 	<-mqttContext.Done()
