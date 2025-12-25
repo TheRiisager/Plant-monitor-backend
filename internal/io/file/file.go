@@ -26,7 +26,7 @@ func WriteToFile[T any](path string, input *T) error {
 	}
 	defer file.Close()
 
-	jsonString, jsonErr := json.Marshal(input)
+	jsonString, jsonErr := json.MarshalIndent(input, "", "  ")
 	if jsonErr != nil || len(jsonString) == 0 {
 		fmt.Println("error marshalling to json, or json result empty")
 		return jsonErr

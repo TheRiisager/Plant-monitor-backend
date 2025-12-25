@@ -13,12 +13,13 @@ import (
 )
 
 type DatabaseWrapper struct {
-	Context   context.Context
-	pool      *pgxpool.Pool
-	semaphore *semaphore.Weighted
+	Context     context.Context
+	pool        *pgxpool.Pool
+	globalStore *types.GlobalStore
+	semaphore   *semaphore.Weighted
 }
 
-func MakeDatabaseWrapper(context context.Context, url string, maxWorkers int64) (DatabaseWrapper, error) {
+func MakeDatabaseWrapper(context context.Context, url string, maxWorkers int64, globalStore *types.GlobalStore) (DatabaseWrapper, error) {
 	var database = DatabaseWrapper{}
 
 	pool, err := pgxpool.New(context, url)
@@ -28,6 +29,7 @@ func MakeDatabaseWrapper(context context.Context, url string, maxWorkers int64) 
 	}
 	database.Context = context
 	database.pool = pool
+	database.globalStore = globalStore
 	database.semaphore = semaphore.NewWeighted(maxWorkers)
 
 	return database, nil
@@ -58,11 +60,24 @@ func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
 }
 
 func (db DatabaseWrapper) QueryTimeSpanByDevice(deviceName string, time string) ([]types.Reading, error) {
-	//TODO validate device name
+	db.globalStore.Mutex.RLock()
+	deviceNameValid := false
+	for _, val := range db.globalStore.Devices {
+		if val.Device == deviceName {
+			deviceNameValid = true
+			break
+		}
+	}
+
+	if !deviceNameValid {
+		return nil, errors.New("Device name is not valid!")
+	}
+	db.globalStore.Mutex.RUnlock()
 
 	regex := regexp.MustCompile(`\b\d+\s*(?:second|minute|hour|day|week|month|year)s?\b`)
+	time = regex.FindString(time)
 
-	if !regex.MatchString(time) {
+	if time == "" {
 		return nil, errors.New("invalid time string")
 	}
 

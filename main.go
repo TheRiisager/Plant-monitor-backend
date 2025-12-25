@@ -27,14 +27,14 @@ func main() {
 
 	publisherAdded := make(chan types.DeviceInfo, 1)
 
-	database, err := database.MakeDatabaseWrapper(context, DB_URL, MAX_WORKERS)
+	globalStore := initGlobalStore(stop)
+
+	database, err := database.MakeDatabaseWrapper(context, DB_URL, MAX_WORKERS, globalStore)
 	if err != nil {
 		fmt.Println(err)
 		stop()
 	}
 	defer database.Close()
-
-	globalStore := initGlobalStore(stop)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {

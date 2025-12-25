@@ -17,13 +17,13 @@ func AddPublisher(options HttpOptions) http.Handler {
 		var body types.DeviceInfo
 		err := decoder.Decode(&body)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "request format incorrect", http.StatusBadRequest)
 			return
 		}
 
-		valErr := validate.Struct(body)
-		if valErr != nil {
-			http.Error(w, valErr.Error(), http.StatusBadRequest)
+		err = validate.Struct(body)
+		if err != nil {
+			http.Error(w, "request format incorrect", http.StatusBadRequest)
 			return
 		}
 		options.SubscriptionChannel <- body
@@ -33,19 +33,42 @@ func AddPublisher(options HttpOptions) http.Handler {
 
 func ReadingsByTimeSpan(options HttpOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		deviceNameValid := false
-		options.GlobalStore.Mutex.RLock()
-		defer options.GlobalStore.Mutex.RUnlock()
-		for _, val := range options.GlobalStore.Devices {
-			if val.Device == vars["deviceName"] {
-				deviceNameValid = true
-				break
-			}
-		}
-		if !deviceNameValid {
-			http.Error(w, "no such device", http.StatusBadRequest)
+		validate := validator.New(validator.WithRequiredStructEnabled())
+		decoder := json.NewDecoder(r.Body)
+		var body QueryTimeSpanByDeviceRequest
+		err := decoder.Decode(&body)
+		if err != nil {
+			http.Error(w, "request format incorrect", http.StatusBadRequest)
 			return
 		}
+
+		err = validate.Struct(body)
+		if err != nil {
+			http.Error(w, "request format incorrect", http.StatusBadRequest)
+			return
+		}
+
+		vars := mux.Vars(r)
+		result, err := options.Database.QueryTimeSpanByDevice(vars["deviceName"], body.Timespan)
+		if err != nil {
+			http.Error(w, "an error occured", http.StatusInternalServerError)
+			return
+		}
+
+		jsonResponse, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, "an error occured", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonResponse)
+	})
+}
+
+func websocketRealTimeReadings(options HttpOptions) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 	})
 }
