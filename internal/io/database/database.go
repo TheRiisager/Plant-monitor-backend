@@ -41,30 +41,18 @@ func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
 	if err := db.semaphore.Acquire(db.Context, 1); err != nil {
 		return err
 	}
-	go func() {
-		defer db.semaphore.Release(1)
-		tx, err := db.pool.Begin(db.Context)
-		if err != nil {
-			return
-		}
-		defer tx.Rollback(db.Context)
+	defer db.semaphore.Release(1)
 
-		_, err = tx.Exec(
-			db.Context,
-			"INSERT INTO readings VALUES (NOW(), $1, $2, $3)",
-			reading.DeviceName,
-			reading.Temperature,
-			reading.SoilMoisture,
-		)
-		if err != nil {
-			return
-		}
-
-		err = tx.Commit(db.Context)
-		if err != nil {
-			return
-		}
-	}()
+	_, err := db.pool.Exec(
+		db.Context,
+		"INSERT INTO readings VALUES (NOW(), $1, $2, $3)",
+		reading.DeviceName,
+		reading.Temperature,
+		reading.SoilMoisture,
+	)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
