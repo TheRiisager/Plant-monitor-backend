@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"riisager/backend_plant_monitor_go/internal/types"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -61,15 +62,10 @@ func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
 
 func (db DatabaseWrapper) QueryTimeSpanByDevice(deviceName string, time string) ([]types.Reading, error) {
 	db.globalStore.Mutex.RLock()
-	deviceNameValid := false
-	for _, val := range db.globalStore.Devices {
-		if val.Device == deviceName {
-			deviceNameValid = true
-			break
-		}
-	}
-
-	if !deviceNameValid {
+	sliceIndex := slices.IndexFunc(db.globalStore.Devices, func(device types.DeviceInfo) bool {
+		return device.Device == deviceName
+	})
+	if sliceIndex < 0 {
 		return nil, errors.New("Device name is not valid!")
 	}
 	db.globalStore.Mutex.RUnlock()

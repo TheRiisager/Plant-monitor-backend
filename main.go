@@ -26,6 +26,7 @@ func main() {
 	defer stop()
 
 	publisherAdded := make(chan types.DeviceInfo, 1)
+	realtimeReadingsChannel := make(chan types.Reading, 1)
 
 	globalStore := initGlobalStore(stop)
 
@@ -44,6 +45,7 @@ func main() {
 			mqtt.MqttOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
+				RealtimeChannel:     realtimeReadingsChannel,
 				Database:            database,
 				GlobalStore:         globalStore,
 			})
@@ -56,12 +58,16 @@ func main() {
 			httpServer.HttpOptions{
 				Context:             context,
 				SubscriptionChannel: publisherAdded,
+				RealtimeChannel:     realtimeReadingsChannel,
 				Database:            database,
 				GlobalStore:         globalStore,
 			})
 
 	})
 	wg.Wait()
+
+	close(publisherAdded)
+	close(realtimeReadingsChannel)
 
 	globalStore.Mutex.RLock()
 	err = file.WriteToFile(

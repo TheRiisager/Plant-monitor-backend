@@ -4,10 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"riisager/backend_plant_monitor_go/internal/types"
+	"slices"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func AddPublisher(options HttpOptions) http.Handler {
 
@@ -69,6 +76,22 @@ func ReadingsByTimeSpan(options HttpOptions) http.Handler {
 
 func websocketRealTimeReadings(options HttpOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		deviceName := mux.Vars(r)["deviceName"]
+		//TODO make this a util function somewhere (where?)
+		sliceIndex := slices.IndexFunc(options.GlobalStore.Devices, func(device types.DeviceInfo) bool {
+			return device.Device == deviceName
+		})
+		if sliceIndex < 0 {
+			http.Error(w, "device does not exist", http.StatusBadRequest)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
 
+		for reading := range options.RealtimeChannel {
+			conn.WriteJSON(reading)
+		}
 	})
 }

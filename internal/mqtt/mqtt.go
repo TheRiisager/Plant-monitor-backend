@@ -19,6 +19,7 @@ type MqttOptions struct {
 	Context             context.Context
 	GlobalStore         *types.GlobalStore
 	SubscriptionChannel chan types.DeviceInfo
+	RealtimeChannel     chan types.Reading
 	Database            database.DatabaseWrapper
 }
 
@@ -36,7 +37,7 @@ func Run(options MqttOptions) {
 
 	mqttRouter := paho.NewStandardRouter()
 	mqttRouter.DefaultHandler(func(p *paho.Publish) {
-		handleMessageReceived(p, options.Database)
+		handleMessageReceived(p, options)
 	})
 
 	clientCfg := autopaho.ClientConfig{
@@ -86,14 +87,15 @@ func Run(options MqttOptions) {
 	<-mqttContext.Done()
 }
 
-func handleMessageReceived(p *paho.Publish, db database.DatabaseWrapper) {
+func handleMessageReceived(p *paho.Publish, options MqttOptions) {
 	var payload types.Reading
 	err := json.Unmarshal(p.Payload, &payload)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	db.SaveReading(payload)
+	options.RealtimeChannel <- payload
+	options.Database.SaveReading(payload)
 }
 
 func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *paho.Connack, store *types.GlobalStore, channel chan types.DeviceInfo) {
