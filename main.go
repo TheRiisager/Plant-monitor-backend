@@ -25,8 +25,8 @@ func main() {
 	context, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	publisherAdded := make(chan types.DeviceInfo, 1)
-	realtimeReadingsChannel := make(chan types.Reading, 1)
+	publisherAdded := make(chan types.DeviceInfo, 3)
+	realtimeReadingsChannel := make(chan types.Reading, 3)
 
 	globalStore := initGlobalStore(stop)
 

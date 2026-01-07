@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	utils "riisager/backend_plant_monitor_go/internal"
 	"riisager/backend_plant_monitor_go/internal/io/database"
 	"riisager/backend_plant_monitor_go/internal/types"
 
@@ -59,6 +60,7 @@ func Run(options MqttOptions) {
 			)
 		},
 		OnConnectError: func(err error) {
+			fmt.Println(err)
 			cancel()
 		},
 		ClientConfig: paho.ClientConfig{
@@ -94,7 +96,10 @@ func handleMessageReceived(p *paho.Publish, options MqttOptions) {
 		fmt.Println(err)
 	}
 
-	options.RealtimeChannel <- payload
+	err = utils.TrySend(payload, options.RealtimeChannel)
+	if err != nil {
+		fmt.Println(err)
+	}
 	options.Database.SaveReading(payload)
 }
 
@@ -103,6 +108,7 @@ func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *pa
 		for {
 			select {
 			case newSub := <-channel:
+				fmt.Println("new sub!")
 				_, err := cm.Subscribe(ctx, &paho.Subscribe{
 					Subscriptions: []paho.SubscribeOptions{
 						{Topic: newSub.Device},
@@ -112,6 +118,7 @@ func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *pa
 				if err != nil {
 					fmt.Println(err)
 				}
+				//TODO prevent duplicates from being added
 				store.Mutex.Lock()
 				store.Devices.Add(newSub)
 				fmt.Println(store.Devices)

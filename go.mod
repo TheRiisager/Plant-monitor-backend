@@ -9,6 +9,7 @@ require (
 
 require (
 	github.com/InfluxCommunity/influxdb3-go/v2 v2.11.0 // indirect
+	github.com/SierraSoftworks/multicast/v2 v2.0.0 // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

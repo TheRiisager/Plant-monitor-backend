@@ -1,5 +1,7 @@
 github.com/InfluxCommunity/influxdb3-go/v2 v2.11.0 h1:VUxOmZcwLzSzvqQ9xVm2nfiUmrvTHWO4L9xAnAnTTtA=
 github.com/InfluxCommunity/influxdb3-go/v2 v2.11.0/go.mod h1:6Eknw5LqN7mFwNEdL6p8KhG4tWhaqV+owOK4S2oTgDE=
+github.com/SierraSoftworks/multicast/v2 v2.0.0 h1:0mN2KN5VLc+xEnbvrXOlRTqoz4bzp6MIvp1vwnwkNGo=
+github.com/SierraSoftworks/multicast/v2 v2.0.0/go.mod h1:+4a2KDy5y3Bf/K5O++7SNBlQ2qZrwj9T3dEVTxwM2K8=
 github.com/apache/arrow-go/v18 v18.4.1 h1:q/jVkBWCJOB9reDgaIZIdruLQUb1kbkvOnOFezVH1C4=
 github.com/apache/arrow-go/v18 v18.4.1/go.mod h1:tLyFubsAl17bvFdUAy24bsSvA/6ww95Iqi67fTpGu3E=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=

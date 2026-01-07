@@ -62,6 +62,7 @@ func (db DatabaseWrapper) SaveReading(reading types.Reading) error {
 
 func (db DatabaseWrapper) QueryTimeSpanByDevice(deviceName string, time string) ([]types.Reading, error) {
 	db.globalStore.Mutex.RLock()
+	//TODO make this a util function somewhere (where?)
 	sliceIndex := slices.IndexFunc(db.globalStore.Devices, func(device types.DeviceInfo) bool {
 		return device.Device == deviceName
 	})

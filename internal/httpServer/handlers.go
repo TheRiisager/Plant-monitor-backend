@@ -2,10 +2,12 @@ package httpServer
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"riisager/backend_plant_monitor_go/internal/types"
 	"slices"
 
+	"github.com/SierraSoftworks/multicast/v2"
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -87,11 +89,12 @@ func websocketRealTimeReadings(options HttpOptions) http.Handler {
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "failed to upgrade connection", http.StatusBadRequest)
 			return
 		}
-
-		for reading := range options.RealtimeChannel {
-			conn.WriteJSON(reading)
-		}
+		listener := multicast.NewListener(options.RealtimeChannel)
+		go websocketWriter(conn, listener, deviceName)
+		websocketReader(conn)
 	})
 }
