@@ -1,24 +1,11 @@
 package types
 
 import (
-	"sync"
 	"time"
 )
 
-// todo thread safety?
-type GlobalStore struct {
-	Devices Devices
-	Mutex   sync.RWMutex
-}
-
 type DeviceInfo struct {
 	Device string `json:"device" validate:"required"`
-}
-
-type Devices []DeviceInfo
-
-func (d *Devices) Add(item DeviceInfo) {
-	*d = append(*d, item)
 }
 
 type Reading struct {

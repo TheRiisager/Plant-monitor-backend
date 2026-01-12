@@ -20,8 +20,6 @@ const MAX_WORKERS int64 = 10
 
 func main() {
 
-	//todo maybe add logic to clean database if devices have been manually removed from the json? Not sure if necessary
-
 	context, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

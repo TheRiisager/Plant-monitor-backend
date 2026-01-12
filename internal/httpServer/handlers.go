@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"riisager/backend_plant_monitor_go/internal/types"
-	"slices"
 
 	"github.com/SierraSoftworks/multicast/v2"
 	"github.com/go-playground/validator/v10"
@@ -79,11 +78,8 @@ func ReadingsByTimeSpan(options HttpOptions) http.Handler {
 func websocketRealTimeReadings(options HttpOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		deviceName := mux.Vars(r)["deviceName"]
-		//TODO make this a util function somewhere (where?)
-		sliceIndex := slices.IndexFunc(options.GlobalStore.Devices, func(device types.DeviceInfo) bool {
-			return device.Device == deviceName
-		})
-		if sliceIndex < 0 {
+
+		if !options.GlobalStore.DeviceExists(deviceName) {
 			http.Error(w, "device does not exist", http.StatusBadRequest)
 			return
 		}

@@ -108,7 +108,6 @@ func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *pa
 		for {
 			select {
 			case newSub := <-channel:
-				fmt.Println("new sub!")
 				_, err := cm.Subscribe(ctx, &paho.Subscribe{
 					Subscriptions: []paho.SubscribeOptions{
 						{Topic: newSub.Device},
@@ -118,11 +117,13 @@ func handleConnection(ctx context.Context, cm *autopaho.ConnectionManager, _ *pa
 				if err != nil {
 					fmt.Println(err)
 				}
-				//TODO prevent duplicates from being added
-				store.Mutex.Lock()
-				store.Devices.Add(newSub)
+
+				if !store.DeviceExists(newSub.Device) {
+					store.Mutex.Lock()
+					store.Devices.Add(newSub)
+					store.Mutex.Unlock()
+				}
 				fmt.Println(store.Devices)
-				store.Mutex.Unlock()
 			case <-ctx.Done():
 				return
 			}
