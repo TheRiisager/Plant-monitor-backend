@@ -12,11 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
 func AddPublisher(options HttpOptions) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +78,20 @@ func websocketRealTimeReadings(options HttpOptions) http.Handler {
 			http.Error(w, "device does not exist", http.StatusBadRequest)
 			return
 		}
+
+		var upgrader = websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		}
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println(err)
 			http.Error(w, "failed to upgrade connection", http.StatusBadRequest)
 			return
 		}
+		defer conn.Close()
+
 		listener := multicast.NewListener(options.RealtimeChannel)
 		go websocketWriter(conn, listener, deviceName)
 		websocketReader(conn)

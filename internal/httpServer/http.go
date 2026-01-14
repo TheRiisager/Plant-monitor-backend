@@ -21,7 +21,7 @@ func Run(options HttpOptions) {
 	mux := mux.NewRouter()
 	mux.Handle("/publisher", AddPublisher(options)).Methods("POST")
 	mux.Handle("/readings/{deviceName}", ReadingsByTimeSpan(options)).Methods("GET")
-	mux.Handle("/readings/{deviceName}/realtime", websocketRealTimeReadings(options)).Methods("GET")
+	mux.Handle("/readings/{deviceName}/realtime", websocketRealTimeReadings(options))
 
 	http.ListenAndServe(":8080", mux)
 }
