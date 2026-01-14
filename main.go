@@ -10,15 +10,19 @@ import (
 	"riisager/backend_plant_monitor_go/internal/io/file"
 	"riisager/backend_plant_monitor_go/internal/mqtt"
 	"riisager/backend_plant_monitor_go/internal/types"
+	"strconv"
 	"sync"
 	"syscall"
 )
 
-const DB_URL = ""
-const SUB_FILE_PATH string = "./config/subscriptions.json"
-const MAX_WORKERS int64 = 10
+const SUB_FILE_PATH string = "./config/devices.json"
 
 func main() {
+	dbUrl := os.Getenv("DB_URL")
+	maxWorkers, err := strconv.ParseInt(os.Getenv("MAX_DB_WORKERS"), 10, 64)
+	if err != nil {
+		panic(err)
+	}
 
 	context, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -28,7 +32,7 @@ func main() {
 
 	globalStore := initGlobalStore(stop)
 
-	database, err := database.MakeDatabaseWrapper(context, DB_URL, MAX_WORKERS, globalStore)
+	database, err := database.MakeDatabaseWrapper(context, dbUrl, maxWorkers, globalStore)
 	if err != nil {
 		fmt.Println(err)
 		stop()
