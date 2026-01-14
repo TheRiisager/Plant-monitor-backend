@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 
 	utils "riisager/backend_plant_monitor_go/internal"
 	"riisager/backend_plant_monitor_go/internal/io/database"
@@ -28,8 +29,7 @@ func Run(options MqttOptions) {
 
 	mqttContext, cancel := context.WithCancel(options.Context)
 
-	//TODO replace with environment variable
-	u, err := url.Parse("mqtt://localhost:1883")
+	u, err := url.Parse(os.Getenv("MQTT_URL"))
 	if err != nil {
 		fmt.Printf("error parsing URL: %#v\n", err)
 		cancel()
